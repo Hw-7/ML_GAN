@@ -9,6 +9,10 @@ import time
 from sklearn.preprocessing import StandardScaler
 import os
 
+
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+print("Using device:", device)
+
 # ======================
 #  1. 开始计时
 # ======================
@@ -91,8 +95,8 @@ class Discriminator(nn.Module):
 # ======================
 # ️ 6. 初始化模型
 # ======================
-G = Generator()
-D = Discriminator()
+G = Generator().to(device)
+D = Discriminator().to(device)
 
 criterion_gan = nn.BCELoss()
 criterion_l1 = nn.L1Loss()
@@ -116,6 +120,10 @@ scaler_y_path = os.path.join(save_dir, 'scaler_y.npy')
 # ======================
 #  8. 训练或加载模型
 # ======================
+# 查看模型所在设备
+print(f"Generator device: {next(G.parameters()).device}")
+print(f"Discriminator device: {next(D.parameters()).device}")
+
 if os.path.exists(G_path) and os.path.exists(D_path):
     G.load_state_dict(torch.load(G_path))
     D.load_state_dict(torch.load(D_path))
@@ -124,9 +132,11 @@ else:
     print(" 开始训练 GAN 模型 ...")
     for epoch in range(epochs):
         for x_batch, y_batch in train_loader:
+            x_batch = x_batch.to(device)
+            y_batch = y_batch.to(device)
             batch_size = x_batch.size(0)
-            real = torch.ones((batch_size, 1))
-            fake = torch.zeros((batch_size, 1))
+            real = torch.ones((batch_size, 1),device=device)
+            fake = torch.zeros((batch_size, 1),device=device)
 
             # --- 判别器 ---
             y_fake = G(x_batch).detach()
@@ -161,8 +171,8 @@ else:
 # ======================
 #  9. 预测阶段
 # ======================
-X_test_tensor = torch.tensor(X_test, dtype=torch.float32)
-Y_pred_scaled = G(X_test_tensor).detach().numpy()
+X_test_tensor = torch.tensor(X_test, dtype=torch.float32).to(device)
+Y_pred_scaled = G(X_test_tensor).detach().cpu().numpy()
 Y_pred = scaler_y.inverse_transform(Y_pred_scaled)
 
 # ======================
